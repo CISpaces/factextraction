@@ -1,0 +1,574 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="intel-analysis-dstl" basedir="./" default="info">
+
+	<!--
+		clean and checking targets
+	-->
+	<target name="clean" depends="init.properties" unless="noclean">
+		<delete dir="${build.dir}" failonerror="false"/>
+	</target>
+
+	<!-- package up github source only commit -->
+	<target name="dist.github" depends="clean, init.properties" description="copy all release files for CISpaces/factextraction github repository">
+		<fail message="release-folder not specified" unless="release-folder"/>
+
+		<copy todir="${release-folder}" failonerror="true" includeEmptyDirs="true">
+			<fileset dir="./">
+				<include name="build.xml"/>
+				<include name="github.properties"/>
+				<include name="config/fact_extraction_app"/>
+				<include name="corpus/**"/>
+				<include name="docs/**"/>
+				<include name="src/**"/>
+			</fileset>
+		</copy>
+
+		<copy file="./README-github.md" tofile="${release-folder}/README.md" failonerror="true"/>
+		<copy file="./config/crawler_app/crawler_app_github.ini" tofile="${release-folder}/config/crawler_app/crawler_app.ini" failonerror="true"/>
+
+		<echo>github release deployed to ${release-folder}</echo>
+	</target>
+
+
+	<!-- package up the fact extraction as a release directory for dstl-silver -->
+	<target name="dist.dstl-silver" depends="clean, init.properties" description="copy all release files to dstl silver release folder (so it can be zipped up with CISpaces release)">
+
+		<fail message="release-folder not specified" unless="release-folder"/>
+
+		<mkdir dir="${release-folder}"/>
+		<mkdir dir="${release-folder}/deployment/releases"/>
+
+		<copy todir="${release-folder}" failonerror="true" includeEmptyDirs="true">
+			<fileset dir="./">
+				<include name="build.xml"/>
+				<include name="dstl-silver.properties"/>
+				<include name="install.sh"/>
+				<include name="README.md"/>
+				<include name="sem.properties"/>
+				<include name="startup-fe.sh"/>
+				<include name="config/**"/>
+				<include name="corpus/**"/>
+				<include name="docs/**"/>
+				<include name="src/**"/>
+				<include name="third-party/*.whl"/>
+				<include name="third-party/*.repo"/>
+				<include name="third-party/*.rpm"/>
+				<include name="third-party/*.whl"/>
+				<include name="third-party/*.gz"/>
+				<include name="third-party/*.sh"/>
+				<include name="third-party/*.zip"/>
+				<include name="third-party/stanford-english-corenlp-2016-10-31-models.jar"/>
+			</fileset>
+		</copy>
+
+		<!-- make dir for corpus as empty dir cannot be committed in git -->
+		<mkdir dir="${release-folder}/corpus/input_folder_dynamic"/>
+		<mkdir dir="${release-folder}/corpus/dstl-silver-phase1"/>
+
+		<!-- ensure shell scripts do not have windows line feed characters -->
+		<replace file="${release-folder}/startup-fe.sh" token="\r" value=""/>
+		<replace file="${release-folder}/install.sh" token="\r" value=""/>
+
+		<unzip src="./third-party/apache-ant-1.10.1.zip" dest="${release-folder}/third-party"/>
+		<unzip src="./third-party/jdk1.8.0_151.zip" dest="${release-folder}/third-party"/>
+
+		<echo>DSTL silver release fact extraction folder deployed to ${release-folder}</echo>
+
+	</target>
+
+
+	<!--
+		install pre-requisites in offline mode for RAF Wyton DSTL Silver platform
+	-->
+
+	<target name="install.dstl-silver" depends="clean, init.properties" description="install fact extraction and third party software (offline mode Red Hat 7.3)">
+
+		<!-- Check this is being run by 'root' user, else fail -->
+		<condition property="isroot">
+			<equals arg1="${user.name}" arg2="root" trim="true"/>
+		</condition>
+		<fail message="Ant must be run as root for this installation!" unless="isroot"/>
+
+					
+		<!-- Install postgresql10 using yum local cache and automatically forcing dependencies install -->
+		<echo>
+			Installing postgresql
+		</echo>
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-y install postgresql10"/>
+		</exec>
+
+		<!-- Install postgresql10-server using yum local cache and automatically forcing dependencies install -->
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-y install postgresql10-server"/>
+		</exec>
+
+		<!-- Install postgresql10-contrib using yum local cache and automatically forcing dependencies install -->
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-y install postgresql10-contrib"/>
+		</exec>
+
+		<!-- Install postgresql10-contrib using yum local cache and automatically forcing dependencies install -->
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-y install postgresql10-libs"/>
+		</exec>
+
+
+		<!-- Install postgresql10-devel using yum local cache -->
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-y install postgresql10-devel"/>
+		</exec>
+
+
+		<!-- Install PostGIS -->
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-y install postgis24_10"/>
+		</exec>
+
+		<!-- Set up postgres user in postgresql10 -->
+		<exec executable="usermod" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="--password it-innovation postgres"/>
+		</exec>
+
+
+		<!-- Start the postgresql10 service -->
+		<echo> Starting the postgresql service</echo>
+		<exec executable="/usr/pgsql-10/bin/postgresql-10-setup" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="initdb"/>
+		</exec>
+
+
+		<!-- Modify postgresql pg_hba.conf -->
+		<!-- make local trust for access -->
+		<replace file="/var/lib/pgsql/10/data/pg_hba.conf" token="ident" value="trust"/>
+		<replace file="/var/lib/pgsql/10/data/pg_hba.conf" token="peer" value="trust"/>
+
+		<exec executable="systemctl" dir="${yum-dependencies.dir}" failonerror="false">
+			<arg line="enable postgresql-10"/>
+		</exec>
+
+		<exec executable="systemctl" dir="${yum-dependencies.dir}" failonerror="false">
+			<arg line="start postgresql-10"/>
+		</exec>
+
+		<!-- Create postgresql database 'intelanalysis' -->
+		<exec executable="createdb" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-U postgres -h 127.0.0.1 intelanalysis"/>
+		</exec>
+
+		<!-- deploy pre-computed database for quick demo startup -->
+		<exec executable="psql" dir="${config.dir}" failonerror="true">
+			<arg line="-U postgres -h 127.0.0.1 -d intelanalysis -f ../corpus/database-phase1/scenario-18-dec-2017.sql"/>
+		</exec>
+
+		<!-- Set up postgresql database and tables for CISpaces vocab -->
+		<exec executable="psql" dir="${config.dir}" failonerror="true">
+			<arg line="-U postgres -h 127.0.0.1 -d intelanalysis -f ../config/fact_extraction_app/create_vocab_tables.sql"/>
+		</exec>
+
+
+
+		<!-- Install Erlang -->
+		<echo>Installing Erlang</echo>
+
+		<!-- Install Erlang using yum local cache and automatically forcing dependencies install -->
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="false">
+			<arg line="-y install erlang"/>
+		</exec>
+
+		<!-- Install RabbitMQ using yum local cache and automatically forcing dependencies install -->
+		<echo>Installing RabbitMQ</echo>
+
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-y install rabbitmq-server"/>
+		</exec>
+
+		<!-- Start the RabbitMQ service -->
+		<exec executable="systemctl" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="start rabbitmq-server.service"/>
+		</exec>
+
+		<!-- Enable the RabbitMQ service -->
+		<exec executable="systemctl" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="enable rabbitmq-server.service"/>
+		</exec>
+
+		<!-- Enable and use the RabbitMQ management console -->
+		<exec executable="rabbitmq-plugins" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="enable rabbitmq_management"/>
+		</exec>
+
+		<!-- Set up RabbitMQ administrator -->
+		<exec executable="chown" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-R rabbitmq:rabbitmq /var/lib/rabbitmq/"/>
+		</exec>
+
+		<exec executable="rabbitmqctl" dir="${yum-dependencies.dir}" failonerror="false">
+			<arg line="add_user mqadmin mqadminpassword"/>
+		</exec>
+
+		<exec executable="rabbitmqctl" dir="${yum-dependencies.dir}" failonerror="false">
+			<arg line="set_user_tags mqadmin administrator"/>
+		</exec>
+
+		<exec executable="rabbitmqctl" dir="${yum-dependencies.dir}" failonerror="false">
+			<arg line="set_permissions -p / mqadmin &quot;.*&quot; &quot;.*&quot; &quot;.*&quot;"/>
+		</exec>
+
+		<!-- Set RabbitMQ 'guest' password as 'guest' -->
+		<exec executable="rabbitmqctl" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="change_password guest guest"/>
+		</exec>
+
+
+
+		<!-- Install gcc using yum local cache and automatically forcing dependencies install -->
+		<echo>Installing gcc</echo>
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-y install gcc"/>
+		</exec>
+
+		<!-- Install python-devel using yum local cache and automatically forcing dependencies install -->
+		<echo>Installing python-devel</echo>
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-y install python-devel"/>
+		</exec>
+
+
+		<echo>Installing python libs</echo>
+
+		<!-- Install python-pip using yum local cache and automatically forcing dependencies install -->
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-y install python-pip"/>
+		</exec>
+
+		<!-- Install python-wheel using yum local cache and automatically forcing dependencies install -->
+		<exec executable="yum" dir="${yum-dependencies.dir}" failonerror="true">
+			<arg line="-y install python-wheel"/>
+		</exec>
+
+		<!-- Pip install NLTK using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ nltk-3.2.5-cp27-none-any.whl"/>
+		</exec>
+
+
+		<!-- Pip install soton_corenlppy wheel using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ soton_corenlppy-0.1.0-py27-none-any.whl"/>
+		</exec>
+
+		<!-- Pip install openiepy wheel using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ openiepy-0.1.0-py27-none-any.whl"/>
+		</exec>
+
+		<!-- Pip install lexicopy wheel using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ lexicopy-0.1.0-py27-none-any.whl"/>
+		</exec>
+
+		<!-- Pip install sit_assesspy wheel using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ sit_assesspy-0.1.0-py27-none-any.whl"/>
+		</exec>
+
+		<!-- Pip install adaptive_crawlpy wheel using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ adaptive_crawlpy-0.1.0-py27-none-any.whl"/>
+		</exec>
+
+		<!-- Pip install numpy using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ numpy"/>
+		</exec>
+
+		<!-- Pip install PyYAML using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ PyYAML"/>
+		</exec>
+
+		<!-- Pip install NLTK using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=&quot;../third-party/whl-dependencies&quot; nltk"/>
+		</exec>
+
+		<!-- Pip install pika wheel using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ pika"/>
+		</exec>
+
+		<!-- Pip install scipy using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ scipy"/>
+		</exec>
+
+		<!-- Pip install gensim using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ gensim"/>
+		</exec>
+
+		<!-- Pip install psycopg using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ psycopg2"/>
+		</exec>
+
+		<!-- Pip install psutil using any dependencies local cache -->
+		<exec executable="pip" dir="${whl-dependencies.dir}" failonerror="true">
+			<arg line="install --no-index --find-links=./ psutil"/>
+		</exec>
+
+		<!-- Install NLTK data to the standard /usr/share/nltk_data directory -->
+		<echo>installing nltk data directory</echo>
+		<exec executable="unzip" dir="${third-party.dir}" failonerror="true">
+			<arg line="nltk_data.zip -d /usr/share/"/>
+		</exec>
+
+		<!-- Install Stanford POS tagger and parser -->
+		<echo>installing stanford POS tagger and parser</echo>
+
+		<exec executable="unzip" dir="${third-party.dir}" failonerror="true">
+			<arg line="stanford-parser-full-2016-10-31.zip"/>
+		</exec>
+
+		<exec executable="unzip" dir="${third-party.dir}" failonerror="true">
+			<arg line="stanford-postagger-full-2016-10-31.zip"/>
+		</exec>
+
+		<copy todir="./third-party/stanford-parser-full-2016-10-31/" failonerror="true">
+			<fileset dir="${third-party.dir}">
+				<include name="stanford-english-corenlp-2016-10-31-models.jar"/>
+			</fileset>
+		</copy>
+
+	</target>
+
+
+	<!--
+		fact extraction app
+	-->
+
+	<target name="run.fact-extraction-app" depends="clean, init.properties" description="run fact extraction app">
+
+		<fail message="Config file property must be specified (fact-extraction-config)" unless="fact-extraction-config"/>
+
+		<mkdir dir="${build.dir}"/>
+		<mkdir dir="${build.dir}/bin"/>
+
+		<!-- make dir for corpus as empty dir cannot be committed in git -->
+		<mkdir dir="${build.dir}/input_folder_dynamic"/>
+
+		<echo>
+		fact_extraction_app [start]
+		</echo>
+		
+		<!-- copy files -->
+		<copy todir="${build.dir}/bin" failonerror="false">
+			<!-- copy src files -->
+			<fileset dir="${src.dir}/common">
+				<include name="config_helper.py"/>
+				<include name="time_helper.py"/>
+				<include name="SqlHandler.py"/>
+				<include name="SocialMediaParser.py"/>
+			</fileset>
+
+			<fileset dir="${src.dir}/fact_extraction_app">
+				<include name="*.py"/>
+			</fileset>
+
+			<!-- config -->
+			<fileset dir="${config.dir}/fact_extraction_app">
+				<include name="*.ini"/>
+			</fileset>
+
+		</copy>
+		
+		<!-- run app -->
+		<exec executable="python" dir="${build.dir}/bin" failonerror="true">
+			<arg value="fact_extraction_app.py" />
+			<arg value="${fact-extraction-config}" />
+		</exec>
+
+		<echo>
+		fact_extraction_app [end]
+		</echo>
+	</target>
+
+	<!--
+		crawler app
+	-->
+
+	<target name="run.crawler-replay" depends="clean, init.properties" description="run crawler replay">
+
+		<mkdir dir="${build.dir}"/>
+		<mkdir dir="${build.dir}/bin"/>
+
+		<echo>
+		crawler_replay [start]
+		</echo>
+		
+		<!-- copy files -->
+		<copy todir="${build.dir}/bin" failonerror="false">
+			<!-- copy src files -->
+			<fileset dir="${src.dir}/common">
+				<include name="config_helper.py"/>
+				<include name="time_helper.py"/>
+				<include name="SqlHandler.py"/>
+				<include name="SocialMediaParser.py"/>
+			</fileset>
+
+			<fileset dir="${src.dir}/crawler_app">
+				<include name="crawler_replay.py"/>
+			</fileset>
+
+			<!-- config -->
+			<fileset dir="${config.dir}/crawler_app">
+				<include name="crawler_app.ini"/>
+			</fileset>
+
+		</copy>
+		
+		<!-- run app -->
+		<exec executable="python" dir="${build.dir}/bin" failonerror="true">
+			<arg value="crawler_replay.py" />
+			<arg value="crawler_app.ini" />
+		</exec>
+
+		<echo>
+		crawler_replay [end]
+		</echo>
+	</target>
+
+	<target name="run.crawler-twitter-search" depends="clean, init.properties" description="run crawler twitter search">
+
+		<mkdir dir="${build.dir}"/>
+		<mkdir dir="${build.dir}/bin"/>
+
+		<echo>
+		crawler_twitter_search [start]
+		</echo>
+		
+		<!-- copy files -->
+		<copy todir="${build.dir}/bin" failonerror="false">
+			<!-- copy src files -->
+			<fileset dir="${src.dir}/common">
+				<include name="config_helper.py"/>
+				<include name="time_helper.py"/>
+				<include name="SqlHandler.py"/>
+				<include name="SocialMediaParser.py"/>
+			</fileset>
+
+			<fileset dir="${src.dir}/crawler_app">
+				<include name="crawler_twitter_search.py"/>
+			</fileset>
+
+			<!-- config -->
+			<fileset dir="${config.dir}/crawler_app">
+				<include name="crawler_app.ini"/>
+			</fileset>
+
+		</copy>
+		
+		<!-- run app -->
+		<exec executable="python" dir="${build.dir}/bin" failonerror="true">
+			<arg value="crawler_twitter_search.py" />
+			<arg value="crawler_app.ini" />
+		</exec>
+
+		<echo>
+		crawler_twitter_search [end]
+		</echo>
+	</target>
+
+	<target name="run.crawler-twitter-stream" depends="clean, init.properties" description="run crawler twitter stream">
+
+		<mkdir dir="${build.dir}"/>
+		<mkdir dir="${build.dir}/bin"/>
+
+		<echo>
+		crawler_twitter_stream [start]
+		</echo>
+		
+		<!-- copy files -->
+		<copy todir="${build.dir}/bin" failonerror="false">
+			<!-- copy src files -->
+			<fileset dir="${src.dir}/common">
+				<include name="config_helper.py"/>
+				<include name="time_helper.py"/>
+				<include name="SqlHandler.py"/>
+				<include name="SocialMediaParser.py"/>
+			</fileset>
+
+			<fileset dir="${src.dir}/crawler_app">
+				<include name="crawler_twitter_stream.py"/>
+			</fileset>
+
+			<!-- config -->
+			<fileset dir="${config.dir}/crawler_app">
+				<include name="crawler_app.ini"/>
+			</fileset>
+
+		</copy>
+		
+		<!-- run app -->
+		<exec executable="python" dir="${build.dir}/bin" failonerror="true">
+			<arg value="crawler_twitter_stream.py" />
+			<arg value="crawler_app.ini" />
+		</exec>
+
+		<echo>
+		crawler_twitter_stream [end]
+		</echo>
+	</target>
+
+
+	<!--
+		properties not dependant on local context
+		version numbers for software releases
+	-->
+	<target name="init.properties" description="Initialise properties">
+		<property name="project.name" value="intel-analysis-dstl"/>
+		<property name="project.home" value="."/>
+		<property name="src.dir" value="./src"/>
+		<property name="build.dir" value="./build"/>
+		<property name="config.dir" value="./config"/>
+		<property name="third-party.dir" value="./third-party"/>
+		<property name="yum-dependencies.dir" value="./third-party/yum-dependencies"/>
+		<property name="whl-dependencies.dir" value="./third-party/whl-dependencies"/>
+		<property name="deployment.dir" value="./deployment/"/>
+		<property environment="env"/>
+	</target>
+
+	<target name="init.versions" description="Initialise version numbers for distribution targets">
+		<property name="fact_extraction_app.version" value="0_1"/>
+		<property name="crawler_app.version" value="0_1"/>
+	</target>
+
+	<!--
+		help info
+	-->
+
+	<target name="info" depends="init.properties, init.versions" description="List all project information">
+		<echo level="info">
+		Basic pre-requisites
+		--------------------
+		Python 2.7.10 and various python libraries (see /docs)
+			
+		Useful information
+		-------------------
+		Project name = ${project.name}
+		Project home = ${project.home}
+
+		fact_extraction_app version = ${fact_extraction_app.version}
+		crawler_app version = ${crawler_app.version}
+
+		"ant info" for this message
+		"ant -projecthelp" for a list of available targets (build, dist, test and deploy)
+
+		Local property files
+		--------------------
+		-propertyfile="sem.properties"
+			
+		</echo>
+	</target>
+</project>

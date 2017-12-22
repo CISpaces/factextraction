@@ -1,0 +1,100 @@
+IPR registry fact-extraction
+Last updated 15/11/2017
+
+# Copyright and acknowledgements
+
+The software is copyright 2017 University of Southampton IT Innovation Centre, UK.
+
+The fact-extraction software was created under DSTL ACC Contract No DSTLX 1000113927.
+
+The soton_corenlppy, openiepy, lexicopy, sit_assesspy, adaptive_crawlpy libraries were created over a 3 year period under EU FP7 project REVEAL (grant agreement number 610928), EU H2020 project GRAVITATE (grant agreement number 665155) and DSTL ACC Contract No DSTLX 1000113927.
+
+# IT Innovation Centre software
+
+fact-extraction
+	University of Southampton IT Innovation Centre
+	BSD 4 clause for DSTL release.
+
+soton_corenlppy
+	University of Southampton IT Innovation Centre
+	BSD 4 clause for DSTL release.
+	Required by fact-extraction
+
+openiepy
+	University of Southampton IT Innovation Centre
+	BSD 4 clause for DSTL release.
+	Required by fact-extraction
+
+lexicopy
+	University of Southampton IT Innovation Centre
+	BSD 4 clause for DSTL release.
+	Required by fact-extraction
+
+sit_assesspy
+	University of Southampton IT Innovation Centre
+	BSD 4 clause for DSTL release.
+	Required by fact-extraction
+
+adaptive_crawlpy
+	University of Southampton IT Innovation Centre
+	BSD 4 clause for DSTL release.
+	Required by fact-extraction
+
+# bundled 3rd party software (source code included in library build) 
+
+twitter_signature
+	Matt Kelsey
+	MIT
+	https://github.com/kelsmj/twitter_signature/blob/master/license.txt
+	Bundled into adaptive_crawlpy
+
+# 3rd party software pre-requisites (software required by module but installed independently)
+
+python
+	Python Software Foundation
+	Python Software Foundation License
+	http://www.python.org/psf/license
+	Required by fact-extraction
+
+nltk
+	NLTK Project
+	Apache License Version 2.0
+	http://www.nltk.org
+	Required by fact-extraction
+
+pika
+	Pika Python AMQP Client Library
+	BSD
+	https://pypi.python.org/pypi/pika
+	Required by fact-extraction
+
+gensim
+	Python framework for fast Vector Space Modelling
+	LGPL v2.0
+	https://pypi.python.org/pypi/gensim
+	Required by lexicopy
+
+psycopg2
+	psycopg2 - Python-PostgreSQL Database Adapter
+	LGPL with exceptions or ZPL
+	https://pypi.python.org/pypi/psycopg2
+	Required by fact-extraction
+
+psutil
+	Giampaolo Rodola
+	BSD
+	https://pypi.python.org/pypi/psutil
+	Required by adaptive_crawlpy
+
+stanford pos tagger
+	Stanford Log-linear Part-Of-Speech Tagger
+	GPL v2.0
+	https://nlp.stanford.edu/software/tagger.shtml
+	Required by fact-extraction
+
+stanford parser
+	The Stanford Parser: A statistical parser
+	GPL v2.0
+	https://nlp.stanford.edu/software/lex-parser.shtml
+	Required by fact-extraction
+
