@@ -133,7 +133,7 @@ See the build.xml script for precise details about how to run each application a
 
 # Support
 
-We do not however offer any software support beyond the examples already provided.
+We do not offer any software support beyond the examples already provided.
 
 # License
 
