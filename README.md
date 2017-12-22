@@ -139,4 +139,4 @@ We do not however offer any software support beyond the examples already provide
 
 The software is copyright 2017 University of Southampton IT Innovation Centre, UK. The fact-extraction software was created under DSTL ACC Contract No DSTLX 1000113927.
 
-It is licensed under a 4 clause BSD license - see https://github.com/CISpaces/factextraction/docs/LICENSE.txt for full details.
+It is licensed under a 4 clause BSD license - see https://github.com/CISpaces/factextraction/blob/master/docs/LICENSE.txt for full details.
