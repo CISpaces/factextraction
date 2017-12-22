@@ -25,6 +25,7 @@
 
 		<copy file="./README-github.md" tofile="${release-folder}/README.md" failonerror="true"/>
 		<copy file="./config/crawler_app/crawler_app_github.ini" tofile="${release-folder}/config/crawler_app/crawler_app.ini" failonerror="true"/>
+		<copy file="./config/fact_extraction_app/fact_extraction_app.ini" tofile="${release-folder}/config/fact_extraction_app/fact_extraction_app.ini" failonerror="true"/>
 
 		<echo>github release deployed to ${release-folder}</echo>
 	</target>
